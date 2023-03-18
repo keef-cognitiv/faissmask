@@ -110,3 +110,4 @@ faiss_read_index
 faiss_read_index_fname
 faiss_write_index
 faiss_write_index_fname
+faiss_factory_create

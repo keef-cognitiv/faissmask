@@ -1,5 +1,15 @@
 version: '3.4'
 services:
-  test:
-    build: .
-      
+  linux-arm64:
+    build: 
+      context: .
+      dockerfile: Dockerfile.linux
+    platform: linux/arm64/v8
+  linux-amd64:
+    build: 
+      context: .
+      dockerfile: Dockerfile.linux
+      args: 
+      - FAISS_OPTIMIZATION=avx2
+    platform: linux/amd64
+

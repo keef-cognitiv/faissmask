@@ -42,6 +42,21 @@ namespace FaissMask.Internal
             return index;
         }
 
+        public static IndexSafeHandle FactoryCreate(int dimensions, string description, MetricType metricType)
+        {
+            IndexSafeHandle result = new IndexSafeHandle();
+            var returnCode = NativeMethods.faiss_index_factory(ref result, dimensions, description, metricType);
+            if (returnCode == 0 && result.handle != IntPtr.Zero)
+            {
+                return result;
+            }
+            else
+            {
+                var lastError = NativeMethods.faiss_get_last_error();
+                throw new ArgumentException($"Invalid arguments for FAISS factory: {lastError}");
+            }
+        }
+
         public bool IsFree { get; internal set; } = false;
 
         protected IndexSafeHandle()

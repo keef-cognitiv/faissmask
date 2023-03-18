@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
 using FaissMask.Extensions;
 using FaissMask.Internal;
 
 namespace FaissMask
 {
-    public abstract class Index : IDisposable
+    public class Index : IDisposable
     {
         internal readonly IndexSafeHandle Handle;
 
@@ -30,9 +31,9 @@ namespace FaissMask
             Add(1, vector);
         }
 
-        public void Add(IEnumerable<float[]> vectors)
+        public void Add(IReadOnlyCollection<float[]> vectors)
         {
-            var count = vectors.Count();
+            var count = vectors.Count;
             Add(count, vectors.SelectMany(v => v).ToArray());
         }
 
@@ -98,6 +99,11 @@ namespace FaissMask
         {
             var ret = Handle.ReconstructVectors(startKey, amount);
             return ret;
+        }
+
+        public static Index Create(int dimensions, string indexDescription, MetricType metric)
+        {
+            return new Index(IndexSafeHandle.FactoryCreate(dimensions, indexDescription, metric));
         }
 
         public ulong SaCodeSize => Handle.SaCodeSize;

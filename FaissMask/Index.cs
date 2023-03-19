@@ -54,9 +54,9 @@ namespace FaissMask
             return Search(1, vector, kneigbors);
         }
 
-        public IEnumerable<SearchResult> Search(IEnumerable<float[]> vectors, long kneighbors)
+        public IEnumerable<SearchResult> Search(IReadOnlyCollection<float[]> vectors, long kneighbors)
         {
-            int count = vectors.Count();
+            int count = vectors.Count;
             var vectorsFlattened = vectors.Flatten();
 
             return Search(count, vectorsFlattened, kneighbors);
@@ -72,22 +72,43 @@ namespace FaissMask
                 Label = l,
                 Distance = d
             });
+
+            using var enumerable = labelDistanceZip.GetEnumerator();
             for (int i = 0; i < count; i++)
             {
-                var vectorResult = labelDistanceZip.Skip((int)(i * kneighbors))
-                    .Take((int)kneighbors);
-                foreach (var r in vectorResult)
+                for (int r = 0; r < kneighbors; r++)
                 {
+                    enumerable.MoveNext();
+                    if (enumerable.Current.Label == -1)
+                    {
+                        yield break;
+                    }
+                    
                     yield return new SearchResult
                     {
-                        Label = r.Label,
-                        Distance = r.Distance
+                        Label = enumerable.Current!.Label,
+                        Distance = enumerable.Current.Distance
                     };
                 }
             }
         }
 
+        public RangeSearchResult RangeSearch(IReadOnlyCollection<float[]> vectors, float radius)
+        {
+            int count = vectors.Count;
+            var vectorsFlattened = vectors.Flatten();
+
+            return RangeSearch(count, vectorsFlattened, radius);
+        }
+
+        public RangeSearchResult RangeSearch(long count, float[] vectors, float radius)
+        {
+            return new RangeSearchResult(Handle.RangeSearch(count, vectors, radius));
+        }
+
         public int Dimensions => Handle.Dimensions;
+
+        public virtual bool CanRangeSearch => false;
 
         public float[] ReconstructVector(long key)
         {
@@ -120,7 +141,6 @@ namespace FaissMask
 
         public void Dispose()
         {
-            Handle?.Free();
             Handle?.Dispose();
         }
     }

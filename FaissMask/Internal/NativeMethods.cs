@@ -47,7 +47,7 @@ namespace FaissMask.Internal
 		public static extern long faiss_Index_ntotal(IndexSafeHandle index);
 
 		[DllImport("faiss_c")]
-		public static extern int faiss_Index_free(IndexSafeHandle index);
+		public static extern int faiss_Index_free(IntPtr index);
 
 		[DllImport("faiss_c")]
 		public static extern int faiss_Index_search(IndexSafeHandle index, long n, float[] x, long k, float[] distances,
@@ -72,7 +72,7 @@ namespace FaissMask.Internal
 		public static extern int faiss_IndexFlat_new_with(ref IndexFlatSafeHandle index, long d, MetricType metric);
 
 		[DllImport("faiss_c")]
-		public static extern int faiss_IndexFlat_free(IndexFlatSafeHandle index);
+		public static extern int faiss_IndexFlat_free(IntPtr index);
 
 		[DllImport("faiss_c")]
 		public static extern int faiss_IndexFlatL2_new(ref IndexFlatL2SafeHandle index);
@@ -108,10 +108,33 @@ namespace FaissMask.Internal
 		public static extern void faiss_IndexIVF_set_nprobe(IndexSafeHandle index, long nProbe);
 
 		[DllImport("faiss_c")]
+		public static extern int faiss_Index_range_search(IndexSafeHandle index, long n, float[] x, float radius,
+			RangeSearchResultSafeHandle result);
+
+		[DllImport("faiss_c")]
 		public static extern int faiss_index_factory(ref IndexSafeHandle index, int d, string description,
 			MetricType metric);
 
 		[DllImport("faiss_c")]
 		public static extern void faiss_IndexPreTransform_new(ref IndexPreTransformSafeHandle index);
+
+		[DllImport("faiss_c")]
+		public static extern int faiss_RangeSearchResult_new(ref RangeSearchResultSafeHandle result, long nq);
+
+		[DllImport("faiss_c")]
+		public static extern ulong faiss_RangeSearchResult_nq(RangeSearchResultSafeHandle result);
+
+		[DllImport("faiss_c")]
+		public static extern ulong faiss_RangeSearchResult_buffer_size(RangeSearchResultSafeHandle result);
+
+		[DllImport("faiss_c")]
+		public static extern void faiss_RangeSearchResult_lims(RangeSearchResultSafeHandle result, ref IntPtr limsPtr);
+
+		[DllImport("faiss_c")]
+		public static extern void faiss_RangeSearchResult_labels(RangeSearchResultSafeHandle result, ref IntPtr labels,
+			ref IntPtr distances);
+
+		[DllImport("faiss_c")]
+		public static extern void faiss_RangeSearchResult_free(IntPtr result);
 	}
 }

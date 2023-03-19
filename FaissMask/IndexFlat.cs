@@ -20,7 +20,9 @@ namespace FaissMask
         public IndexFlat(long dimension, MetricType metric) : base(IndexFlatSafeHandle.New(dimension, metric))
         {
         }
-        
+
+        public override bool CanRangeSearch => true;
+
         private IndexFlat(object handle) : base(handle) {}
     }
 }

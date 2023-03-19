@@ -24,7 +24,7 @@ namespace FaissMask.Internal
         
         public override void Free()
         {
-            NativeMethods.faiss_IndexFlat_free(this);
+            NativeMethods.faiss_IndexFlat_free(handle);
             IsFree = true;
         }
 

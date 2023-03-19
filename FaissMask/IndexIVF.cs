@@ -21,7 +21,7 @@ namespace FaissMask
         {
             IndexIvfSafeHandle.MakeDirectMap();
         }
-
+        
         public long NumProbes
         {
             get => IndexIvfSafeHandle.NumProbes;

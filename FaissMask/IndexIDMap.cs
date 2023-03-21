@@ -6,9 +6,9 @@ namespace FaissMask
 {
     public class IndexIDMap : Index
     {
-        public static IndexIDMap Read(string filename)
+        public static IndexIDMap Read(string filename, IoFlags flags = IoFlags.None)
         {
-            var handle = IndexSafeHandle.Read(filename, ptr => new IndexIDMapSafeHandle(ptr));
+            var handle = IndexSafeHandle.Read(filename, ptr => new IndexIDMapSafeHandle(ptr), flags);
 
             return new IndexIDMap(handle);
         }

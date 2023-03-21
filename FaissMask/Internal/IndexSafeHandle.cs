@@ -1,11 +1,16 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace FaissMask.Internal
 {
 	internal class IndexSafeHandle : SafeHandleZeroIsInvalid
 	{
-		public static THandle Read<THandle>(string filename, Func<IntPtr, THandle> createHandle)
+		private IndexSafeHandle? _parent = null;
+		private readonly HashSet<IndexSafeHandle> _derivatives = new();
+
+		public static THandle Read<THandle>(string filename, Func<IntPtr, THandle> createHandle, IoFlags flags)
 			where THandle : IndexSafeHandle
 		{
 			if (string.IsNullOrEmpty(filename))
@@ -20,7 +25,7 @@ namespace FaissMask.Internal
 			}
 
 			var pointer = IntPtr.Zero;
-			var returnCode = NativeMethods.faiss_read_index_fname(filename, 0, ref pointer);
+			var returnCode = NativeMethods.faiss_read_index_fname(filename, (int)flags, ref pointer);
 			if (returnCode != 0 || pointer == IntPtr.Zero)
 			{
 				var lastError = NativeMethods.faiss_get_last_error();
@@ -38,14 +43,35 @@ namespace FaissMask.Internal
 			}
 
 			var index = createHandle(pointer);
-
 			return index;
 		}
 
-		public static IndexSafeHandle FactoryCreate(int dimensions, string description, MetricType metricType)
+		public void Write(string filename)
 		{
-			IndexSafeHandle result = new IndexSafeHandle();
-			var returnCode = NativeMethods.faiss_index_factory(ref result, dimensions, description, metricType);
+			filename = Path.GetFullPath(filename);
+			var returnCode = NativeMethods.faiss_write_index_fname(this, filename);
+			if (returnCode != 0)
+			{
+				var lastError = NativeMethods.faiss_get_last_error();
+
+				if (string.IsNullOrEmpty(lastError))
+				{
+					throw new IOException(
+						$"An unknown error occurred trying to write the index '{filename}' (return code {returnCode})");
+				}
+				else
+				{
+					throw new IOException(
+						$"An error occurred trying to write the index '{filename}': {lastError} (return code {returnCode})");
+				}
+			}
+		}
+
+		public static T FactoryCreate<T>(int dimensions, string description, MetricType metricType)
+			where T : IndexSafeHandle, new()
+		{
+			T result = new T();
+			var returnCode = NativeMethods.faiss_index_factory(ref result.handle, dimensions, description, metricType);
 			if (returnCode == 0 && result.handle != IntPtr.Zero)
 			{
 				return result;
@@ -57,19 +83,24 @@ namespace FaissMask.Internal
 
 		public bool IsFree { get; internal set; } = false;
 
-		protected IndexSafeHandle()
+		public IndexSafeHandle()
 		{
 		}
 
-		protected IndexSafeHandle(IntPtr pointer) : base(pointer)
+		internal IndexSafeHandle(IntPtr pointer) : base(pointer)
 		{
 		}
 
 		public int Dimensions => NativeMethods.faiss_Index_d(this);
 
-		public void Add(long count, float[] vectors)
+		public unsafe void Add(long count, ReadOnlySpan<float> vectors)
 		{
-			NativeMethods.faiss_Index_add(this, count, vectors);
+			Checks.RequireCountMatches(count, vectors, Dimensions);
+
+			fixed (float* vects = vectors)
+			{
+				NativeMethods.faiss_Index_add(this, count, vects);
+			}
 		}
 
 		public bool IsTrained()
@@ -92,15 +123,73 @@ namespace FaissMask.Internal
 			}
 		}
 
-		public void Search(long count, float[] vectors, long k, float[] distances, long[] labels)
+		public unsafe void Train(long count, ReadOnlySpan<float> trainingData)
 		{
-			NativeMethods.faiss_Index_search(this, count, vectors, k, distances, labels);
+			Checks.RequireCountMatches(count, trainingData, Dimensions);
+
+			int returnCode;
+			fixed (float* data = trainingData)
+			{
+				returnCode = NativeMethods.faiss_Index_train(this, count, data);
+			}
+
+			if (returnCode != 0)
+			{
+				var lastError = NativeMethods.faiss_get_last_error();
+
+				if (string.IsNullOrEmpty(lastError))
+				{
+					throw new ArgumentException(
+						$"An unknown error occurred while training the index (return code {returnCode})");
+				}
+
+				throw new ArgumentException(
+					$"Invalid arguments for a train or train on an Index that doesn't support it: {lastError} (return code {returnCode})");
+			}
 		}
 
-		public RangeSearchResultSafeHandle RangeSearch(long count, float[] vectors, float radius)
+		public unsafe void Search(long count, ReadOnlySpan<float> vectors, long k, Span<float> distances,
+			Span<long> labels)
 		{
+			Checks.RequireCountMatches(count, vectors, Dimensions);
+			if (distances.Length != k * count)
+			{
+				throw new ArgumentException(
+					$"Output distances size ({distances.Length}) should match k * vector count ({k * count})");
+			}
+
+			if (labels.Length != k * count)
+			{
+				throw new ArgumentException(
+					$"Output labels size ({labels.Length}) should match k * vector count ({k * count})");
+			}
+
+			fixed (float* vects = vectors)
+			{
+				fixed (float* dists = distances)
+				{
+					fixed (long* labs = labels)
+					{
+						NativeMethods.faiss_Index_search(this, count, vects, k, dists, labs);
+					}
+				}
+			}
+		}
+
+		public RangeSearchResultSafeHandle RangeSearch(long count, ReadOnlySpan<float> vectors, float radius)
+		{
+			Checks.RequireCountMatches(count, vectors, Dimensions);
+
 			var results = RangeSearchResultSafeHandle.New(count);
-			var returnCode = NativeMethods.faiss_Index_range_search(this, count, vectors, radius, results);
+			int returnCode;
+
+			unsafe
+			{
+				fixed (float* vects = vectors)
+				{
+					returnCode = NativeMethods.faiss_Index_range_search(this, count, vects, radius, results);
+				}
+			}
 
 			if (returnCode != 0)
 			{
@@ -124,6 +213,20 @@ namespace FaissMask.Internal
 		{
 			if (!IsFree)
 				Free();
+			
+			_parent?._derivatives?.Remove(this);
+			foreach (var derivative in _derivatives.ToList())
+			{
+				try
+				{
+					derivative._parent = null;
+					derivative.Dispose();
+				}
+				catch (Exception)
+				{
+				}
+			}
+
 			return true;
 		}
 
@@ -153,17 +256,25 @@ namespace FaissMask.Internal
 			return choppedVectors;
 		}
 
-		public byte[] EncodeVector(float[] vector, int numberOfCOdes)
+		public unsafe byte[] EncodeVector(ReadOnlySpan<float> vector, int numberOfCOdes)
 		{
 			var bytes = new byte[numberOfCOdes];
-			NativeMethods.faiss_Index_sa_encode(this, 1, vector, bytes);
+			fixed (float* decoded = vector)
+			{
+				NativeMethods.faiss_Index_sa_encode(this, 1, decoded, bytes);
+			}
+
 			return bytes;
 		}
 
-		public float[] DecodeVector(byte[] bytes)
+		public unsafe float[] DecodeVector(ReadOnlySpan<byte> bytes)
 		{
 			var vector = new float[Dimensions];
-			NativeMethods.faiss_Index_sa_decode(this, 1, bytes, vector);
+			fixed (byte* encoded = bytes)
+			{
+				NativeMethods.faiss_Index_sa_decode(this, 1, encoded, vector);
+			}
+
 			return vector;
 		}
 
@@ -180,6 +291,13 @@ namespace FaissMask.Internal
 				NativeMethods.faiss_Index_sa_code_size(this, ptr);
 				return ptr.ToUInt64();
 			}
+		}
+
+		public void TrackDerivative(IndexSafeHandle nhandle)
+		{
+			nhandle._parent = this;
+			nhandle.IsFree = true;
+			_derivatives.Add(nhandle);
 		}
 	}
 }

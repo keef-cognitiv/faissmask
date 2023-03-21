@@ -4,9 +4,9 @@ namespace FaissMask
 {
     public class IndexFlat : Index
     {
-        public static IndexFlat Read(string filename)
+        public static IndexFlat Read(string filename, IoFlags flags = IoFlags.None)
         {
-            var handle = IndexSafeHandle.Read(filename, ptr => new IndexFlatSafeHandle(ptr));
+            var handle = IndexSafeHandle.Read(filename, ptr => new IndexFlatSafeHandle(ptr), flags);
             return new IndexFlat(handle);
         }
         

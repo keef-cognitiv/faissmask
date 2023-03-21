@@ -26,6 +26,11 @@ namespace FaissMask
             Handle = handle as IndexSafeHandle;
         }
 
+        internal Index(IndexSafeHandle handle)
+        {
+            Handle = handle;
+        }
+
         public void Add(float[] vector)
         {
             Add(1, vector);
@@ -37,7 +42,7 @@ namespace FaissMask
             Add(count, vectors.SelectMany(v => v).ToArray());
         }
 
-        private void Add(long count, float[] vectors)
+        public void Add(long count, ReadOnlySpan<float> vectors)
         {
             Handle.Add(count, vectors);
         }
@@ -62,11 +67,27 @@ namespace FaissMask
             return Search(count, vectorsFlattened, kneighbors);
         }
 
-        private IEnumerable<SearchResult> Search(long count, float[] vectorsFlattened, long kneighbors)
+        public void Train(long count, ReadOnlySpan<float> trainingData)
+        {
+            Handle.Train(count, trainingData);
+        }
+
+        public void Train(IReadOnlyCollection<float[]> trainingData)
+        {
+            Train(trainingData.Count, trainingData.Flatten());
+        }
+
+        private IEnumerable<SearchResult> Search(long count, Span<float> vectorsFlattened, long kneighbors)
         {
             float[] distances = new float[kneighbors * count];
             long[] labels = new long[kneighbors * count];
+
             Handle.Search(count, vectorsFlattened, kneighbors, distances, labels);
+            return ToSearchResults(count, distances, labels, kneighbors);
+        }
+
+        private IEnumerable<SearchResult> ToSearchResults(long count, float[] distances, long[] labels, long kneighbors)
+        {
             var labelDistanceZip = labels.Zip(distances, (l, d) => new
             {
                 Label = l,
@@ -124,7 +145,12 @@ namespace FaissMask
 
         public static Index Create(int dimensions, string indexDescription, MetricType metric)
         {
-            return new Index(IndexSafeHandle.FactoryCreate(dimensions, indexDescription, metric));
+            return new Index(IndexSafeHandle.FactoryCreate<IndexSafeHandle>(dimensions, indexDescription, metric));
+        }
+
+        public void Write(string filename)
+        {
+            Handle.Write(filename);
         }
 
         public ulong SaCodeSize => Handle.SaCodeSize;
@@ -139,7 +165,7 @@ namespace FaissMask
             return Handle.DecodeVector(bytes);
         }
 
-        public void Dispose()
+        public virtual void Dispose()
         {
             Handle?.Dispose();
         }

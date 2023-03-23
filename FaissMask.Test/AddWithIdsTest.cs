@@ -39,7 +39,8 @@ namespace FaissMask.Test
                 using (var idIndex = new IndexIDMap(index))
                 {
                     idIndex.Add(vectors, Enumerable.Range(idStart, idStart + vectorsCount).Select(r => (long)r));
-                    var result = idIndex.Search(vectors.Select(v => v).ToList(), k);
+                    var result = idIndex.Search(vectors.Select(v => v).ToList(), k)
+                        .SelectMany(p => p);
                     foreach (var m in result)
                     {
                         Assert.InRange(m.Label, idStart, idStart + vectorsCount - 1);

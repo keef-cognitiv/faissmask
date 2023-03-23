@@ -373,6 +373,14 @@ namespace FaissMask.Internal
 		public static extern int faiss_CenteringTransform_new_with(
 			ref VectorTransformSafeHandle handle,
 			int d);
-
+		
+		[DllImport("faiss_c")]
+		public static extern void faiss_fvec_renorm_L2(ulong d, ulong nx, float[] x);
+		
+		[DllImport("faiss_c")]
+		public static extern void faiss_fvec_inner_products_ny(float[] ip, float[] x, float[] y, ulong d, ulong ny);
+		
+		[DllImport("faiss_c")]
+		public static extern void faiss_fvec_L2sqr_ny(float[] dist, float[] x, float[] y, ulong d, ulong ny);
 	}
 }

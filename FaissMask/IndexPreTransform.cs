@@ -19,7 +19,7 @@ namespace FaissMask
         {
             _index = index;
         }
-
+        
         public void PrependTransform(VectorTransform transform)
         {
             IndexPreTransformSafeHandle.PrependTransform(transform.Handle);

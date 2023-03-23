@@ -12,7 +12,7 @@ namespace FaissMask.Internal
         {
             return New(d, metric: MetricType.MetricL2);
         }
-        public static IndexFlatSafeHandle New(long d, MetricType metric = MetricType.MetricL2)
+        public static IndexFlatSafeHandle New(long d, MetricType metric)
         {
             var index = new IndexFlatSafeHandle();
             NativeMethods.faiss_IndexFlat_new_with(ref index, d, metric);

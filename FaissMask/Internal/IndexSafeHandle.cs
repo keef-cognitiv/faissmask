@@ -7,7 +7,7 @@ namespace FaissMask.Internal
 {
 	internal class IndexSafeHandle : SafeHandleZeroIsInvalid
 	{
-		private IndexSafeHandle? _parent = null;
+		private IndexSafeHandle _parent = null;
 		private readonly HashSet<IndexSafeHandle> _derivatives = new();
 
 		public static THandle Read<THandle>(string filename, Func<IntPtr, THandle> createHandle, IoFlags flags)

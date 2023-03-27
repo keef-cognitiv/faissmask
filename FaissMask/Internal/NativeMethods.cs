@@ -47,13 +47,19 @@ namespace FaissMask.Internal
 							LoadLibrary("mkl_gnu_thread");
 						}
 
-						LoadLibrary("mkl_def");
+						LoadLibrary("mkl_intel_lp64");
+						LoadLibrary("mkl_sequential");
 						LoadLibrary("mkl_avx2");
+					}
+					else
+					{
+						LoadLibrary("openblas");
 					}
 
 					// load gomp and base faiss
 					LoadLibrary("gomp");
 					LoadLibrary("faiss");
+					LoadLibrary("faiss_avx2");
 				}
 			}
 
@@ -136,6 +142,7 @@ namespace FaissMask.Internal
 				var osDir = Path.Join(assemblyDir, "runtimes", GetRuntimeDir(), "native");
 
 				var dirs = new[] { assemblyDir, osDir };
+				string lastError = null;
 				foreach (var dir in dirs)
 				{
 					var filename = Path.Join(dir, $"{prefix}{library}{suffix}");
@@ -146,24 +153,26 @@ namespace FaissMask.Internal
 						{
 							continue;
 						}
-
+						
 						result = dlopen(file, UnixDlOpenFlags.RTLD_GLOBAL | UnixDlOpenFlags.RTLD_LAZY);
 						if (result != IntPtr.Zero)
 						{
 							return;
 						}
+
+
+						lastError = lastError ?? Marshal.PtrToStringUTF8(dlerror());
 					}
 				}
 
 				result = dlopen(library, UnixDlOpenFlags.RTLD_GLOBAL | UnixDlOpenFlags.RTLD_LAZY);
 				if (result == IntPtr.Zero)
 				{
-					var err = Marshal.PtrToStringUTF8(dlerror());
+					var err = lastError ?? Marshal.PtrToStringUTF8(dlerror());
 					throw new DllNotFoundException($"Couldn't load library {library}: {err}");
 				}
 			}
-
-
+			
 			public static IntPtr PreloaderResolver(string libraryName, Assembly asm,
 				DllImportSearchPath? dllImportSearchPath)
 			{

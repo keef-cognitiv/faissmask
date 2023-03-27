@@ -2,8 +2,6 @@
 
     <PropertyGroup>
         <TargetFramework>net6.0</TargetFramework>
-        <PlatformTarget Condition="$(PlatformTarget)=='' and '$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'arm64'">arm64</PlatformTarget>
-        <PlatformTarget Condition="$(PlatformTarget)==''">x64</PlatformTarget>
         <LangVersion>Latest</LangVersion>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     </PropertyGroup>
@@ -33,9 +31,10 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Content Include="runtimes\**" PackagePath="runtimes" Visible="false">
+        <Content Include="runtimes\**\*.*" PackagePath="runtimes" Visible="false">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
             <Pack>true</Pack>
+	    <PackagePath>runtimes</PackagePath>
         </Content>
     </ItemGroup>
 </Project>

@@ -10,7 +10,7 @@ RUN apt-get -y update && \
     apt-get -y install apt-utils
 
 RUN apt-get -y update && \
-    apt-get -y install wget gnupg2 libgomp1 software-properties-common
+    apt-get -y install wget gnupg2 libgomp1 software-properties-common patchelf
 
 # install intel-mkl
 RUN if [ "${FAISS_OPTIMIZATION}" = "avx2" ]; then cd /tmp && \
@@ -40,9 +40,10 @@ RUN apt-get -y install git && \
 /opt/intel/mkl/lib/intel64/libmkl_intel_lp64.so:/opt/intel/mkl/lib/intel64/libmkl_gnu_thread.so && \
     export MKLROOT=/opt/intel/mkl; export FAISS_OPT_SUFFIX="_avx2"; else export FAISS_OPT_SUFFIX=""; fi && \
     cmake -DFAISS_ENABLE_GPU=OFF -DFAISS_ENABLE_PYTHON=OFF -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release -DFAISS_ENABLE_C_API=ON -DBUILD_SHARED_LIBS=ON -DFAISS_OPT_LEVEL="${FAISS_OPTIMIZATION}" -B build . && \
+    find /usr/lib -name 'libgomp*' && find /usr/lib -name 'libopenblas*' && \
     make -C build -j $(nproc) "faiss${FAISS_OPT_SUFFIX}" install
 
-RUN mkdir -p /tmp/faiss-build-output/lib && cp /faiss/build/faiss/libfaiss*.so /faiss/build/c_api/libfaiss_c.so /usr/lib/*-linux-gnu/libgomp.so.1 /tmp/faiss-build-output/lib/ && if [ "${FAISS_OPTIMIZATION}" = "avx2" ]; then cp /opt/intel/mkl/lib/intel64/libmkl_def.so /opt/intel/mkl/lib/intel64/libmkl_avx2.so /opt/intel/mkl/lib/intel64/libmkl_core.so /opt/intel/mkl/lib/intel64/libmkl_intel_lp64.so /opt/intel/mkl/lib/intel64/libmkl_gnu_thread.so /opt/intel/mkl/lib/intel64/libmkl_sequential.so /tmp/faiss-build-output/lib/; fi
+RUN mkdir -p /tmp/faiss-build-output/lib && cp /faiss/build/faiss/libfaiss*.so /faiss/build/c_api/libfaiss_c.so /usr/lib/*-linux-gnu/libgomp.so.1 /usr/lib/*-linux-gnu/libopenblas.so.0 /tmp/faiss-build-output/lib/ && if [ "${FAISS_OPTIMIZATION}" = "avx2" ]; then patchelf --set-soname libmkl_def.so /opt/intel/mkl/lib/intel64/libmkl_def.so && patchelf --set-soname libmkl_avx2.so /opt/intel/mkl/lib/intel64/libmkl_avx2.so && patchelf --set-soname libmkl_core.so /opt/intel/mkl/lib/intel64/libmkl_core.so && patchelf --set-soname libmkl_intel_lp64.so /opt/intel/mkl/lib/intel64/libmkl_intel_lp64.so && patchelf --set-soname libmkl_gnu_thread.so /opt/intel/mkl/lib/intel64/libmkl_gnu_thread.so && patchelf --set-soname libmkl_sequential.so /opt/intel/mkl/lib/intel64/libmkl_sequential.so && cp /opt/intel/mkl/lib/intel64/libmkl_def.so /opt/intel/mkl/lib/intel64/libmkl_avx2.so /opt/intel/mkl/lib/intel64/libmkl_core.so /opt/intel/mkl/lib/intel64/libmkl_intel_lp64.so /opt/intel/mkl/lib/intel64/libmkl_gnu_thread.so /opt/intel/mkl/lib/intel64/libmkl_sequential.so /tmp/faiss-build-output/lib/; fi
 
 FROM mcr.microsoft.com/dotnet/sdk:6.0
 
